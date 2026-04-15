@@ -18,6 +18,47 @@ from typing import Any, TypedDict
 
 from langgraph.graph import END, START, StateGraph
 
+from src.agent.output_workspace import write_node_output
+
+logger = logging.getLogger(__name__)
+
+
+def _sync_node_to_workspace(task_id: str, node_name: str, result: dict[str, Any]) -> None:
+    """Write a node's output to the task workspace directory.
+
+    Calls write_node_output once per node; the function dispatches based on node_name.
+    """
+    try:
+        path = write_node_output(task_id, node_name, result)
+        if path:
+            logger.debug("[supervisor] synced %s → %s", node_name, path.name)
+    except Exception as exc:
+        logger.warning("[supervisor] failed to sync node output to workspace: %s", exc)
+
+
+def _append_review_revision(task_id: str, workflow_state: dict[str, Any]) -> None:
+    """Append the current draft as a revision when review fails."""
+    try:
+        from src.agent.output_workspace import append_revision
+
+        draft_md = workflow_state.get("draft_markdown")
+        draft_report = workflow_state.get("draft_report")
+        review_passed = workflow_state.get("review_passed")
+
+        revision_text: str | None = None
+        if isinstance(draft_md, str) and draft_md:
+            revision_text = draft_md
+        elif isinstance(draft_report, dict):
+            import json as _json
+            revision_text = _json.dumps(draft_report, ensure_ascii=False, indent=2)
+
+        if revision_text:
+            label = "after_review" if review_passed is False else "revision"
+            append_revision(task_id, revision_text, label=label)
+    except Exception as exc:
+        logger.warning("[supervisor] failed to append review revision: %s", exc)
+
+
 from src.agent.checkpointing import build_graph_config, get_langgraph_checkpointer
 from src.models.config import (
     AgentParadigm,
@@ -26,8 +67,6 @@ from src.models.config import (
     Phase4Config,
     SupervisorMode,
 )
-
-logger = logging.getLogger(__name__)
 
 
 CANONICAL_NODE_ORDER: tuple[str, ...] = (
@@ -385,6 +424,16 @@ class AgentSupervisor:
             self._merge_state(workflow_state, result)
             trace = list(state.get("collaboration_trace", []))
             trace.append(self._build_trace_entry(node_name, result))
+
+            # Write node output to the task workspace directory
+            task_id = workflow_state.get("task_id")
+            if task_id:
+                _sync_node_to_workspace(task_id, node_name, result)
+
+            # When review fails, append the current draft as a revision
+            if node_name == "review" and not workflow_state.get("review_passed"):
+                _append_review_revision(task_id, workflow_state)
+
             return {
                 "workflow_state": workflow_state,
                 "collaboration_trace": trace,

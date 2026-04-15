@@ -390,10 +390,19 @@ async def _run_graph(task_id: str):
     _sync_task_snapshot(task)
 
     try:
+        # Create the output workspace directory
+        from src.agent.output_workspace import create_workspace
+
+        create_workspace(task.task_id, {
+            "workspace_id": task.workspace_id or "",
+            "source_type": task.source_type,
+            "report_mode": task.report_mode,
+            "input_value": task.input_value,
+        })
+
         import functools
         from src.agent.checkpointing import build_graph_config
 
-        # Support research-mode tasks that pass source_type explicitly
         source_type = getattr(task, "source_type", None) or "arxiv"
 
         if source_type == "research":
@@ -559,6 +568,10 @@ async def _run_graph(task_id: str):
             )
             if report_id:
                 task.persisted_report_id = report_id
+
+            # Write to output workspace
+            from src.agent.output_workspace import write_report
+            write_report(task.task_id, task.result_markdown)
 
     except Exception as e:
         task.error = str(e)
