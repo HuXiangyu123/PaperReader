@@ -63,51 +63,47 @@ def _build_draft_report(cards: list[Any], brief: Any | None) -> DraftReport:
     SYSTEM = (
         'You are an expert academic survey writer. Generate a comprehensive, detailed survey report '
         "based on the provided paper cards. The output MUST be strictly valid JSON (no markdown code blocks).\n\n"
-        "IMPORTANT RULES:\n"
-        "1. EVERY section must contain substantive, specific content derived from the paper cards.\n"
-        "   NEVER write '（待补充）' or 'to be added' or 'TBD' or 'placeholder'.\n"
-        "   If a paper abstract mentions a method, dataset, benchmark, or finding — write it explicitly.\n"
-        "2. For the 'methods' section: For EACH paper, infer the method from its abstract and describe:\n"
-        "   - What the method does (concisely)\n"
-        "   - Key innovation or insight\n"
-        "   - Reference the paper with its citation label [N]\n"
-        "3. For the 'datasets' section: List all mentioned benchmarks/datasets with their characteristics.\n"
-        "4. For the 'taxonomy' section: Organize papers into categories with specific categorization criteria.\n"
-        "5. For the 'evaluation' section: Include any numbers/metrics mentioned in abstracts when available.\n"
+        "IMPORTANT WRITING PRINCIPLES:\n"
+        "1. Analyze BEFORE you write. Read through all paper cards first, identify patterns, themes, and relationships across papers.\n"
+        "2. Synthesize, do NOT paraphrase. When discussing multiple papers, identify what they collectively reveal — do not list them one by one.\n"
+        "3. NEVER repeat abstract text. The 'methods' section must describe each method's technical approach, architecture, and contributions in your own analytical voice. Do NOT copy sentences from abstracts.\n"
+        "4. Cross-reference papers. When one paper's finding confirms or contradicts another's, say so explicitly.\n\n"
+        "JSON OUTPUT SCHEMA — each section must be substantive and analytical (no TBD/placeholder):\n"
         '  "sections": {\n'
         '    "title": "Survey paper title — 15-25 Chinese characters, descriptive and specific",\n'
         '    "abstract": "Executive summary (400-600 chars) — motivation, scope, key findings, contributions",\n'
-        '    "introduction": "Comprehensive introduction (800-1200 chars) — research context, evolution of the field, '
-        'motivation for this survey, main contributions, paper organization roadmap",\n'
-        '    "background": "Background & motivation (600-1000 chars) — foundational concepts, '
-        'problem formalization, historical context, why this field matters, key challenges driving research",\n'
-        '    "taxonomy": "Detailed taxonomy & categorization (1000-1500 chars) — hierarchical organization '
+        '    "introduction": "Comprehensive introduction (1500-2500 chars) — field evolution, research motivation, '
+        'key challenges, main contributions, paper organization roadmap. Must reference at least 8 papers.\n'
+        'Write this section analytically: describe the research trajectory, not just paper titles.",\n'
+        '    "background": "Background & motivation (800-1200 chars) — foundational concepts, '
+        'problem formalization, historical context, why this field matters",\n'
+        '    "taxonomy": "Detailed taxonomy & categorization (1500-2000 chars) — hierarchical organization '
         'of methods/approaches. For EACH category: category name, key characteristics, representative papers. '
         'Use citation labels like [1], [2], etc. for each paper referenced.",\n'
-        '    "methods": "Core methods deep-dive (1200-1800 chars) — For EACH paper: method name, what it does, '
-        'key technical innovations, strengths and weaknesses. Cross-reference with citation labels. '
-        'Infer methods from abstract when methods field is absent in cards.",\n'
-        '    "datasets": "Datasets & experimental settings (600-1000 chars) — benchmark datasets, '
-        'evaluation metrics, experimental protocols. Table format preferred when possible: '
-        '| Dataset | Type | Size | Notes |. '
-        'Infer datasets from abstract when datasets field is absent in cards.",\n'
-        '    "evaluation": "Performance comparison & analysis (800-1200 chars) — quantitative comparison '
+        '    "methods": "Core methods deep-dive (2000-3000 chars) — For EACH method family: describe the '
+        'technical approach, architectural design, key innovations, strengths, weaknesses. '
+        'Cross-reference with citation labels. Reference at least 10 papers.',\n'
+        '    "datasets": "Datasets & experimental settings (800-1200 chars) — benchmark datasets, '
+        'evaluation metrics, experimental protocols. Table format preferred: '
+        '| Dataset | Type | Size | Notes |. ', \n'
+        '    "evaluation": "Performance comparison & analysis (1200-1800 chars) — quantitative comparison '
         'across methods on key benchmarks. Include specific numbers from abstracts when available. '
         'Identify best-performing methods per metric.",\n'
-        '    "discussion": "Discussion & insights (600-900 chars) — cross-cutting themes, trade-offs '
-        'between approaches, reproducibility issues, common pitfalls, lessons learned. '
-        'Infer limitations from abstract when limitations field is absent in cards.",\n'
-        '    "future_work": "Open challenges & future directions (500-800 chars) — unsolved problems, '
+        '    "discussion": "Discussion & insights (1000-1500 chars) — cross-cutting themes, trade-offs '
+        'between approaches, reproducibility issues, common pitfalls, lessons learned.",\n'
+        '    "future_work": "Open challenges & future directions (800-1200 chars) — unsolved problems, '
         'promising research avenues, potential breakthroughs, underexplored directions",\n'
-        '    "conclusion": "Conclusion (300-500 chars) — summary of main findings, contributions, '
+        '    "conclusion": "Conclusion (400-600 chars) — summary of main findings, contributions, '
         'take-away messages for readers"\n'
         "  },\n"
         '  "claims": [\n'
-        '    {"id": "c1", "text": "specific verifiable claim", "citation_labels": ["[1]", "[2]"]},\n'
+        '    {"id": "c1", "text": "specific verifiable claim derived from cross-paper analysis", '
+        '"citation_labels": ["[1]", "[2]"]},\n'
         '    ...\n'
         "  ],\n"
         '  "citations": [\n'
-        '    {"label": "[1]", "url": "https://arxiv.org/abs/...", "reason": "brief reason this paper is cited", "arxiv_id": "2301.01234"},\n'
+        '    {"label": "[1]", "url": "https://arxiv.org/abs/...", "reason": "brief reason this paper is cited", '
+        '"arxiv_id": "2301.01234"},\n'
         '    ...\n'
         "  ]\n"
         "}"
@@ -117,13 +113,17 @@ def _build_draft_report(cards: list[Any], brief: Any | None) -> DraftReport:
         "{brief_ctx}"
         "\n\n## 论文卡片\n{cards_text}\n\n"
         "请根据以上论文卡片生成详尽的综述草稿。\n"
-        "IMPORTANT: 必须从每张卡片的摘要(abstract)中提取并推断方法、数据集和关键技术贡献。\n"
-        "不要留任何（待补充）占位文字。每个部分都要写实质内容。"
+        "分析要求：\n"
+        "1. 先通读所有卡片，识别主题模式和论文间的关系\n"
+        "2. 综合分析，而非逐篇摘要：讨论各论文的共同发现、技术差异、相互关系\n"
+        "3. introduction 部分必须引用至少 8 篇论文，描述领域发展脉络\n"
+        "4. methods 部分必须引用至少 10 篇论文，分析每个方法家族的技术贡献\n"
+        "5. 禁止留任何（待补充）占位文字，每个部分都要写实质性分析内容"
     ).format(brief_ctx=brief_ctx, cards_text=cards_text)
 
     try:
         settings = get_settings()
-        llm = build_reason_llm(settings, max_tokens=8192, timeout_s=240)
+        llm = build_reason_llm(settings, max_tokens=16384, timeout_s=300)
         resp = llm.invoke([SystemMessage(content=SYSTEM), HumanMessage(content=USER)])
         text = getattr(resp, "content", "") or ""
 

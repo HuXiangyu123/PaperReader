@@ -11,6 +11,13 @@ from langchain_core.messages import AIMessage, HumanMessage, SystemMessage
 from src.graph.callbacks import NodeEventEmitter
 from src.models.task import TaskRecord, TaskStatus
 from src.agent.report_frame import REGULAR_CHAT_SYSTEM_PROMPT, SURVEY_CHAT_SYSTEM_PROMPT
+from src.db.task_persistence import (
+    list_task_snapshots,
+    load_task_report,
+    load_task_snapshot,
+    save_task_report,
+    upsert_task_snapshot,
+)
 
 router = APIRouter(prefix="/tasks", tags=["tasks"])
 
@@ -30,6 +37,9 @@ class CreateTaskRequest(BaseModel):
 class CreateTaskResponse(BaseModel):
     task_id: str
     status: str
+    workspace_id: str
+    source_type: str
+    report_mode: str
 
 
 class ChatRequest(BaseModel):
@@ -39,6 +49,70 @@ class ChatRequest(BaseModel):
 class ChatResponse(BaseModel):
     role: str
     content: str
+
+
+def _json_safe(value):
+    if value is None:
+        return None
+    if hasattr(value, "model_dump"):
+        value = value.model_dump(mode="json")
+    try:
+        return json.loads(json.dumps(value, ensure_ascii=False, default=str))
+    except TypeError:
+        return str(value)
+
+
+def _sync_task_snapshot(task: TaskRecord) -> None:
+    try:
+        task.persisted_to_db = bool(upsert_task_snapshot(task))
+        task.persistence_error = None if task.persisted_to_db else task.persistence_error
+    except Exception as exc:  # noqa: BLE001
+        task.persistence_error = str(exc)
+        task.persisted_to_db = False
+
+
+def _get_task_record(task_id: str) -> TaskRecord | None:
+    task = _tasks.get(task_id)
+    if task:
+        return task
+    task = load_task_snapshot(task_id)
+    if task:
+        _tasks[task.task_id] = task
+    return task
+
+
+def _task_payload(task: TaskRecord) -> dict:
+    return {
+        "task_id": task.task_id,
+        "status": task.status.value,
+        "created_at": task.created_at,
+        "completed_at": task.completed_at,
+        "workspace_id": task.workspace_id,
+        "report_mode": task.report_mode,
+        "source_type": task.source_type,
+        "paper_type": task.paper_type,
+        "draft_markdown": task.draft_markdown,
+        "full_markdown": task.full_markdown,
+        "result_markdown": task.result_markdown,
+        "brief": task.brief,
+        "search_plan": task.search_plan,
+        "rag_result": task.rag_result,
+        "paper_cards": task.paper_cards,
+        "draft_report": task.draft_report,
+        "review_feedback": task.review_feedback,
+        "review_passed": task.review_passed,
+        "artifacts_created": task.artifacts_created,
+        "artifact_count": task.artifact_count,
+        "collaboration_trace": task.collaboration_trace,
+        "supervisor_mode": task.supervisor_mode,
+        "current_stage": task.current_stage,
+        "followup_hints": task.followup_hints,
+        "chat_history": task.chat_history,
+        "error": task.error,
+        "persisted_to_db": task.persisted_to_db,
+        "persisted_report_id": task.persisted_report_id,
+        "persistence_error": task.persistence_error,
+    }
 
 
 @router.post("", response_model=CreateTaskResponse)
@@ -51,53 +125,83 @@ async def create_task(req: CreateTaskRequest) -> CreateTaskResponse:
         source_type=source_type,
     )
     _tasks[task.task_id] = task
+    _sync_task_snapshot(task)
 
     asyncio.create_task(_run_graph(task.task_id))
 
-    return CreateTaskResponse(task_id=task.task_id, status=task.status.value)
+    return CreateTaskResponse(
+        task_id=task.task_id,
+        status=task.status.value,
+        workspace_id=task.workspace_id or "",
+        source_type=task.source_type,
+        report_mode=task.report_mode,
+    )
 
 
 @router.get("")
 async def list_tasks():
+    tasks_by_id = {t.task_id: t for t in list_task_snapshots()}
+    tasks_by_id.update(_tasks)
     return [
         {
             "task_id": t.task_id,
             "status": t.status.value,
             "created_at": t.created_at,
+            "workspace_id": t.workspace_id,
             "source_type": t.source_type,
         }
-        for t in _tasks.values()
+        for t in sorted(tasks_by_id.values(), key=lambda item: item.created_at, reverse=True)
     ]
 
 
 @router.get("/{task_id}")
 async def get_task(task_id: str):
-    task = _tasks.get(task_id)
+    task = _get_task_record(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
+    return _task_payload(task)
+
+
+@router.get("/{task_id}/result")
+async def get_task_result(task_id: str):
+    task = _get_task_record(task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Task not found")
+
+    report_row = load_task_report(task_id)
+    persisted_markdown = report_row.get("content_markdown") if report_row else None
+    report_id = report_row.get("report_id") if report_row else task.persisted_report_id
+    report_kind = report_row.get("report_kind") if report_row else (
+        "research_report" if task.source_type == "research" else "final_report"
+    )
     return {
         "task_id": task.task_id,
+        "workspace_id": task.workspace_id,
         "status": task.status.value,
-        "created_at": task.created_at,
-        "completed_at": task.completed_at,
-        "report_mode": task.report_mode,
         "source_type": task.source_type,
-        "paper_type": task.paper_type,
+        "report_kind": report_kind,
+        "report_id": report_id,
+        "persisted": bool(report_row or task.persisted_to_db),
+        "result_markdown": persisted_markdown or task.result_markdown,
         "draft_markdown": task.draft_markdown,
         "full_markdown": task.full_markdown,
-        "result_markdown": task.result_markdown,
         "brief": task.brief,
         "search_plan": task.search_plan,
-        "current_stage": task.current_stage,
-        "followup_hints": task.followup_hints,
-        "chat_history": task.chat_history,
-        "error": task.error,
+        "rag_result": task.rag_result,
+        "paper_cards": task.paper_cards,
+        "draft_report": task.draft_report,
+        "review_feedback": task.review_feedback,
+        "review_passed": task.review_passed,
+        "artifacts_created": task.artifacts_created,
+        "artifact_count": task.artifact_count,
+        "collaboration_trace": task.collaboration_trace,
+        "supervisor_mode": task.supervisor_mode,
     }
 
 
 @router.post("/{task_id}/chat", response_model=ChatResponse)
 async def task_chat(task_id: str, payload: ChatRequest) -> ChatResponse:
-    task = _tasks.get(task_id)
+    task = _get_task_record(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
     if task.status != TaskStatus.COMPLETED:
@@ -141,12 +245,13 @@ async def task_chat(task_id: str, payload: ChatRequest) -> ChatResponse:
 
     task.chat_history.append({"role": "user", "content": payload.message})
     task.chat_history.append({"role": "assistant", "content": content})
+    _sync_task_snapshot(task)
     return ChatResponse(role="assistant", content=content)
 
 
 @router.get("/{task_id}/events")
 async def task_events_sse(task_id: str):
-    task = _tasks.get(task_id)
+    task = _get_task_record(task_id)
     if not task:
         raise HTTPException(status_code=404, detail="Task not found")
 
@@ -167,7 +272,7 @@ async def task_events_sse(task_id: str):
     return StreamingResponse(event_stream(), media_type="text/event-stream")
 
 
-def _run_graph_sync(initial_state: dict, node_events: list, graph=None) -> dict | None:
+def _run_graph_sync(initial_state: dict, node_events: list, graph=None, graph_config: dict | None = None) -> dict | None:
     """Run graph in a thread, streaming node events in real time."""
     from src.graph.builder import build_report_graph
 
@@ -177,7 +282,8 @@ def _run_graph_sync(initial_state: dict, node_events: list, graph=None) -> dict 
     collected_errors: list[str] = []
     state_snapshot: dict = {}
 
-    for chunk in graph.stream(initial_state):
+    stream_kwargs = {"config": graph_config} if graph_config else {}
+    for chunk in graph.stream(initial_state, **stream_kwargs):
         for node_name, output in chunk.items():
             if node_name.startswith("__"):
                 continue
@@ -191,15 +297,64 @@ def _run_graph_sync(initial_state: dict, node_events: list, graph=None) -> dict 
     return {"final_report": final_report, "errors": collected_errors, "state": state_snapshot}
 
 
+def _append_supervisor_trace_events(node_events: list, trace: list[dict]) -> None:
+    from datetime import datetime, timezone
+
+    for entry in trace:
+        node_name = entry.get("node")
+        if not node_name:
+            continue
+        timestamp = datetime.now(timezone.utc).isoformat()
+        node_events.append({
+            "type": "node_start",
+            "node": node_name,
+            "timestamp": timestamp,
+        })
+        node_events.append({
+            "type": "node_end",
+            "node": node_name,
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+            "status": "done",
+            "warnings": list(entry.get("warnings") or []),
+            "tokens_delta": int(entry.get("tokens_delta") or 0),
+            "duration_ms": entry.get("duration_ms"),
+            "error": entry.get("error"),
+        })
+
+
+def _run_supervisor_sync(supervisor, initial_state: dict, *, use_handoff: bool) -> dict:
+    """Run the async supervisor in a worker thread for task background jobs."""
+
+    async def _runner() -> dict:
+        if use_handoff:
+            return await supervisor.collaborate_with_handoff(
+                state=initial_state,
+                user_request=initial_state.get("raw_input"),
+            )
+        return await supervisor.collaborate(state=initial_state)
+
+    return asyncio.run(_runner())
+
+
 def _build_state_template(report_mode: str) -> dict:
     """Shared state template for both report and research workflows."""
     return {
         "raw_input": "",
+        "task_id": "",
+        "workspace_id": "",
         "source_type": "arxiv",
         "report_mode": report_mode,
+        "research_depth": "full",
         "paper_type": None,
         "brief": None,
         "search_plan": None,
+        "search_plan_warnings": [],
+        "rag_result": None,
+        "paper_cards": [],
+        "review_feedback": None,
+        "review_passed": None,
+        "artifacts_created": [],
+        "artifact_count": 0,
         "current_stage": None,
         "arxiv_id": None,
         "pdf_text": None,
@@ -232,24 +387,50 @@ async def _run_graph(task_id: str):
 
     task.status = TaskStatus.RUNNING
     task.node_events.append({"type": "status_change", "status": "running"})
+    _sync_task_snapshot(task)
 
     try:
         import functools
+        from src.agent.checkpointing import build_graph_config
 
         # Support research-mode tasks that pass source_type explicitly
         source_type = getattr(task, "source_type", None) or "arxiv"
 
         if source_type == "research":
-            from src.research.graph.builder import build_research_graph
-            
-            emitter = NodeEventEmitter()
-            emitter.events = task.node_events
+            from src.models.config import SupervisorMode
+            from src.research.agents.supervisor import get_supervisor
 
-            graph = build_research_graph(emitter)
+            supervisor = get_supervisor()
             initial_state: dict = {
                 **_build_state_template(task.report_mode),
+                "task_id": task.task_id,
+                "workspace_id": task.workspace_id or "",
                 "source_type": "research",
                 "raw_input": task.input_value,
+            }
+            configured_mode = getattr(supervisor.config, "supervisor_mode", SupervisorMode.GRAPH)
+            task.supervisor_mode = configured_mode.value if hasattr(configured_mode, "value") else str(configured_mode)
+            use_handoff = configured_mode == SupervisorMode.LLM_HANDOFF
+
+            loop = asyncio.get_running_loop()
+            supervisor_result = await loop.run_in_executor(
+                None,
+                functools.partial(
+                    _run_supervisor_sync,
+                    supervisor,
+                    initial_state,
+                    use_handoff=use_handoff,
+                ),
+            )
+            supervisor_state = supervisor_result or {}
+            trace = list(supervisor_state.get("collaboration_trace") or [])
+            task.collaboration_trace = _json_safe(trace) or []
+            if trace:
+                _append_supervisor_trace_events(task.node_events, trace)
+            result = {
+                "final_report": supervisor_state.get("final_report"),
+                "errors": list(supervisor_state.get("errors") or []),
+                "state": supervisor_state,
             }
         else:
             from src.graph.builder import build_report_graph
@@ -257,42 +438,76 @@ async def _run_graph(task_id: str):
             emitter = NodeEventEmitter()
             emitter.events = task.node_events
 
-            graph = build_report_graph(emitter)
+            graph = build_report_graph(emitter, use_checkpointer=True)
             if task.input_type == "pdf":
                 initial_state = {
                     **_build_state_template(task.report_mode),
+                    "task_id": task.task_id,
+                    "workspace_id": task.workspace_id or "",
                     "source_type": "pdf",
                     "pdf_text": task.input_value,
                 }
             else:
                 initial_state = {
                     **_build_state_template(task.report_mode),
+                    "task_id": task.task_id,
+                    "workspace_id": task.workspace_id or "",
                     "raw_input": task.input_value,
                 }
+            graph_config = build_graph_config(
+                "report_graph",
+                thread_id=task.task_id,
+                recursion_limit=80,
+            )
 
-        loop = asyncio.get_running_loop()
-        result = await loop.run_in_executor(
-            None,
-            functools.partial(_run_graph_sync, initial_state, task.node_events, graph),
-        )
+            loop = asyncio.get_running_loop()
+            result = await loop.run_in_executor(
+                None,
+                functools.partial(_run_graph_sync, initial_state, task.node_events, graph, graph_config),
+            )
 
         final = result.get("final_report") if result else None
         state_result = result.get("state", {}) if result else {}
         task.paper_type = state_result.get("paper_type")
         task.current_stage = state_result.get("current_stage")
         task.followup_hints = list(state_result.get("followup_hints") or [])
+        task.brief = _json_safe(state_result.get("brief"))
+        task.search_plan = _json_safe(state_result.get("search_plan"))
+        task.rag_result = _json_safe(state_result.get("rag_result"))
+        task.paper_cards = _json_safe(state_result.get("paper_cards")) or []
+        task.draft_report = _json_safe(state_result.get("draft_report"))
+        task.review_feedback = _json_safe(state_result.get("review_feedback"))
+        task.review_passed = state_result.get("review_passed")
+        task.artifacts_created = _json_safe(state_result.get("artifacts_created")) or []
+        task.artifact_count = int(state_result.get("artifact_count") or 0)
 
         if source_type == "research":
-            brief = state_result.get("brief")
-            search_plan = state_result.get("search_plan")
-            task.brief = brief
-            task.search_plan = search_plan
-            if brief:
+            brief = task.brief
+            search_plan = task.search_plan
+            markdown = (
+                state_result.get("result_markdown")
+                or state_result.get("draft_markdown")
+                or state_result.get("full_markdown")
+            )
+            if not markdown and final:
+                from src.agent.report import _final_report_to_markdown
+
+                markdown = _final_report_to_markdown(final)
+
+            if markdown:
+                task.result_markdown = str(markdown)
+                task.draft_markdown = str(markdown)
+                task.report_context_snapshot = task.result_markdown
+                task.status = TaskStatus.COMPLETED
+            elif brief:
                 import json as _json
 
                 result_payload = {
                     "brief": brief,
                     "search_plan": search_plan,
+                    "rag_result": task.rag_result,
+                    "review_feedback": task.review_feedback,
+                    "review_passed": task.review_passed,
                 }
                 task.result_markdown = _json.dumps(result_payload, ensure_ascii=False, indent=2)
                 task.report_context_snapshot = task.result_markdown
@@ -323,12 +538,35 @@ async def _run_graph(task_id: str):
             task.error = "; ".join(errors) if errors else "No report generated"
             task.status = TaskStatus.FAILED
 
+        if task.result_markdown:
+            report_id = save_task_report(
+                task=task,
+                report_kind="research_report" if source_type == "research" else "final_report",
+                content_markdown=task.result_markdown,
+                content_json={
+                    "brief": task.brief,
+                    "search_plan": task.search_plan,
+                    "rag_result": task.rag_result,
+                    "paper_cards": task.paper_cards,
+                    "draft_report": task.draft_report,
+                    "review_feedback": task.review_feedback,
+                    "review_passed": task.review_passed,
+                    "artifacts_created": task.artifacts_created,
+                    "artifact_count": task.artifact_count,
+                    "collaboration_trace": task.collaboration_trace,
+                    "supervisor_mode": task.supervisor_mode,
+                },
+            )
+            if report_id:
+                task.persisted_report_id = report_id
+
     except Exception as e:
         task.error = str(e)
         task.status = TaskStatus.FAILED
 
     task.completed_at = datetime.now(timezone.utc).isoformat()
     task.node_events.append({"type": "status_change", "status": task.status.value})
+    _sync_task_snapshot(task)
 
 
 def get_tasks_store():
