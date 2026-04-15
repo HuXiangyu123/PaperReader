@@ -1,0 +1,64 @@
+from unittest.mock import patch
+
+from src.models.report import Citation, Claim, DraftReport, FinalReport, GroundingStats
+from src.models.review import ReviewFeedback
+from src.research.graph.nodes.review import review_node
+
+
+def _make_draft() -> DraftReport:
+    return DraftReport(
+        sections={"introduction": "test"},
+        claims=[Claim(id="c1", text="claim", citation_labels=["[1]"])],
+        citations=[Citation(label="[1]", url="https://arxiv.org/abs/1706.03762", reason="paper")],
+    )
+
+
+def test_review_node_returns_grounding_outputs():
+    draft = _make_draft()
+    grounded_final = FinalReport(
+        sections={"introduction": "grounded"},
+        claims=[],
+        citations=[],
+        grounding_stats=GroundingStats(
+            total_claims=1,
+            grounded=1,
+            partial=0,
+            ungrounded=0,
+            abstained=0,
+            tier_a_ratio=1.0,
+            tier_b_ratio=0.0,
+        ),
+        report_confidence="high",
+    )
+    feedback = ReviewFeedback(task_id="t1", workspace_id="ws1", passed=True, summary="ok")
+
+    with (
+        patch(
+            "src.research.graph.nodes.review.ground_draft_report",
+            return_value={
+                "resolved_report": {"ok": True},
+                "verified_report": {"ok": True},
+                "final_report": grounded_final,
+                "draft_markdown": "# grounded",
+                "warnings": ["citation warning"],
+            },
+        ),
+        patch(
+            "src.research.graph.nodes.review._run_reviewer_sync",
+            return_value=feedback,
+        ),
+    ):
+        result = review_node(
+            {
+                "task_id": "t1",
+                "workspace_id": "ws1",
+                "draft_report": draft,
+                "paper_cards": [],
+            }
+        )
+
+    assert result["review_feedback"].summary == "ok"
+    assert result["review_passed"] is True
+    assert result["final_report"].report_confidence == "high"
+    assert result["draft_markdown"] == "# grounded"
+    assert result["warnings"] == ["citation warning"]
