@@ -1,0 +1,18 @@
+@import "tailwindcss";
+
+/* Academic light shell — IBM Plex (serif titles, sans UI) */
+body {
+  margin: 0;
+  font-family: "IBM Plex Sans", system-ui, sans-serif;
+  background-color: #f0ebe3;
+  color: #1c1917;
+  -webkit-font-smoothing: antialiased;
+}
+
+#root {
+  min-height: 100vh;
+}
+
+.font-display {
+  font-family: "IBM Plex Serif", Georgia, "Times New Roman", serif;
+}
