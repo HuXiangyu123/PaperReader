@@ -1,0 +1,12 @@
+# Cursor Rules
+
+- This repository is PostgreSQL-only for durable persistence.
+- Do not introduce SQLite, `.sqlite` files, or `sqlite:///` code paths.
+- Backend stack: Python, FastAPI, Uvicorn, Pydantic v2, SQLAlchemy 2, LangGraph, LangChain Core.
+- LLM stack: DeepSeek via OpenAI-compatible API.
+- Retrieval stack: PostgreSQL, pgvector (optional), FAISS, SearXNG.
+- Frontend stack: React 19, TypeScript 5, Vite 8, Tailwind CSS 4, `@xyflow/react`.
+- Tests should follow the production stack and avoid SQLite-only shortcuts.
+- If env vars are required in scripts/tests, load `.env` explicitly with `load_dotenv(".env")`.
+- Do not put fast-changing workflow topology or architecture notes in this file; keep current architecture and usage docs under `docs/`.
+- When implementing public API integrations or external service calls, research and reference publicly available repositories and official examples for best practices before implementation.

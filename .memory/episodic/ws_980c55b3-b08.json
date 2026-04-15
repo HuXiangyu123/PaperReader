@@ -1,0 +1,87 @@
+{
+  "episodes": [
+    {
+      "episode_id": "ep_980c55b3-b082-4174-95f1-f3dff0138c18_0",
+      "task_id": "980c55b3-b082-4174-95f1-f3dff0138c18",
+      "workspace_id": "ws_980c55b3-b08",
+      "topic": "大模型在代码生成领域的最新进展",
+      "start_time": 1776002700.1043332,
+      "end_time": 1776002874.606049,
+      "status": "completed",
+      "stages": [
+        {
+          "stage": "iteration_1",
+          "timestamp": 1776002748.278962,
+          "data": {
+            "queries_tried": [
+              "大模型在代码生成领域的最新进展",
+              "term: 代码生成方法"
+            ],
+            "plan_goal": null,
+            "reflection": "迭代 1 摘要：```json\n{\n  \"covered_topics\": [],\n  \"high_quality_hits\": [],\n  \"low_quality_hits\": [],\n  \"missing_angles\": [\"所有搜索请求均因网络连接问题失败，无法获取任何搜索结果进行分析。建议检查网络连接、搜索服务可用性或调整搜索策略。\"]\n}\n```"
+          }
+        },
+        {
+          "stage": "iteration_2",
+          "timestamp": 1776002784.735353,
+          "data": {
+            "queries_tried": [
+              "term: 程序合成",
+              "大模型在代码生成领域的最新进展 survey review",
+              "大模型在代码生成领域的最新进展 benchmark dataset"
+            ],
+            "plan_goal": "全面调研大模型（Large Language Models）在代码生成领域的最新进展，识别代表性工作并分析其方法与证据的共性与差异，为后续综述写作提供基础。",
+            "reflection": "迭代 2 摘要：```json\n{\n  \"covered_topics\": [],\n  \"high_quality_hits\": [],\n  \"low_quality_hits\": [],\n  \"missing_angles\": [\"所有搜索请求均失败，无法获取任何搜索结果。失败原因包括：网络连接被拒绝（Connection refused）和搜索服务暂时不可用（circuit_open）。需要检查网络连接、搜索"
+          }
+        },
+        {
+          "stage": "iteration_3",
+          "timestamp": 1776002828.361194,
+          "data": {
+            "queries_tried": [
+              "term: 代码补全",
+              "大模型在代码生成领域的最新进展 application",
+              "大模型在代码生成领域的最新进展 limitation"
+            ],
+            "plan_goal": "全面调研大模型（Large Language Models, LLMs）在代码生成领域的最新进展，识别代表性工作，并分析其方法与证据的共性与差异，为后续综述写作奠定基础。",
+            "reflection": "迭代 3 摘要：```json\n{\n  \"covered_topics\": [],\n  \"high_quality_hits\": [],\n  \"low_quality_hits\": [],\n  \"missing_angles\": [\"所有搜索请求均失败，无法获取任何有效搜索结果。错误类型包括：网络连接被拒绝（Connection refused）和搜索服务暂时不可用（circuit_open）。这表明搜索服务可能"
+          }
+        },
+        {
+          "stage": "iteration_4",
+          "timestamp": 1776002871.3640552,
+          "data": {
+            "queries_tried": [
+              "term: 代码翻译",
+              "term: 神经代码生成",
+              "term: 基于Transformer的代码生成"
+            ],
+            "plan_goal": "全面调研大模型（Large Language Models, LLMs）在代码生成领域的最新进展，识别代表性工作并分析其方法与证据的共性与差异，为后续综述写作奠定基础。",
+            "reflection": "迭代 4 摘要：```json\n{\n  \"covered_topics\": [],\n  \"high_quality_hits\": [],\n  \"low_quality_hits\": [],\n  \"missing_angles\": [\"所有搜索请求均失败，无法获取任何有效信息。搜索结果全部为网络连接错误（Connection refused）或服务不可用（circuit_open），表明搜索服务完全无法访问。需要检"
+          }
+        }
+      ],
+      "outcome_summary": "全面调研大模型（Large Language Models, LLMs）在代码生成领域的最新进展，识别代表性工作并分析其方法与证据的共性与差异，为后续综述写作奠定基础。",
+      "artifacts": [],
+      "metadata": {
+        "brief": {
+          "topic": "大模型在代码生成领域的最新进展",
+          "goal": "为后续综述写作和方法梳理做前期调研",
+          "desired_output": "survey_outline",
+          "sub_questions": [
+            "这个方向近年的代表性工作有哪些？",
+            "这些工作在 代表性方法与证据 方面呈现出哪些共性与差异？"
+          ],
+          "time_range": null,
+          "domain_scope": null,
+          "source_constraints": [],
+          "focus_dimensions": [],
+          "ambiguities": [],
+          "needs_followup": false,
+          "confidence": 0.68,
+          "schema_version": "v1"
+        }
+      }
+    }
+  ]
+}

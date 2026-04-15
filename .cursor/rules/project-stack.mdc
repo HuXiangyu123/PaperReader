@@ -1,0 +1,26 @@
+---
+description: Project-wide stack and persistence rules
+globs:
+alwaysApply: true
+---
+
+# Project Stack
+
+- Backend uses Python 3.10+, FastAPI, Uvicorn, Pydantic v2, and SQLAlchemy 2.
+- Agent orchestration uses LangGraph + LangChain Core.
+- Primary LLM provider is DeepSeek through an OpenAI-compatible API.
+- Durable persistence uses PostgreSQL only.
+- Optional PostgreSQL vector support uses `pgvector`.
+- Retrieval stack uses FAISS locally and SearXNG for search aggregation.
+- Frontend uses React 19, TypeScript 5, Vite 8, Tailwind CSS 4, and `@xyflow/react`.
+- Tests use pytest and FastAPI `TestClient`.
+
+# Hard Rules
+
+- Never add SQLite databases, `.sqlite` files, or SQLite-specific code paths.
+- Do not add `sqlite:///` URLs in code, tests, scripts, or docs.
+- All long-lived task, report, metadata, and artifact persistence must go through PostgreSQL via `DATABASE_URL`.
+- In-memory stores may be used for transient runtime state only, not as durable storage.
+- If a script or test depends on environment variables, load `.env` explicitly with `load_dotenv(".env")`.
+- When changing persistence behavior, keep `/tasks`, `/tasks/{id}`, and `/tasks/{id}/result` consistent.
+- Do not put fast-changing workflow topology or architecture notes in Cursor rules; keep that material in `docs/`.

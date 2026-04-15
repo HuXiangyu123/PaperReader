@@ -1,0 +1,6 @@
+# Keep secrets out of AI / indexing context (you can still open files manually).
+.env
+.env.*
+!.env.example
+*.pem
+*.key

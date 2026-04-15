@@ -1,0 +1,35 @@
+{
+  "episodes": [
+    {
+      "episode_id": "ep_1a3eb529-2fc9-41ce-935f-30de1b0b07db_0",
+      "task_id": "1a3eb529-2fc9-41ce-935f-30de1b0b07db",
+      "workspace_id": "ws_1a3eb529-2fc",
+      "topic": "2025 年 LLM Agent 在软件工程 SWE 方向的最新进展",
+      "start_time": 1775980669.8400671,
+      "end_time": 1775980669.854709,
+      "status": "completed",
+      "stages": [],
+      "outcome_summary": "围绕 2025 年 LLM Agent 在软件工程 SWE 方向的最新进展 制定相关研究检索计划",
+      "artifacts": [],
+      "metadata": {
+        "brief": {
+          "topic": "2025 年 LLM Agent 在软件工程 SWE 方向的最新进展",
+          "goal": "为后续综述写作和方法梳理做前期调研",
+          "desired_output": "survey_outline",
+          "sub_questions": [
+            "这个方向近年的代表性工作有哪些？",
+            "这些工作在 代表性方法与证据 方面呈现出哪些共性与差异？"
+          ],
+          "time_range": null,
+          "domain_scope": null,
+          "source_constraints": [],
+          "focus_dimensions": [],
+          "ambiguities": [],
+          "needs_followup": false,
+          "confidence": 0.68,
+          "schema_version": "v1"
+        }
+      }
+    }
+  ]
+}
