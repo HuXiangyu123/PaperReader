@@ -19,7 +19,16 @@ dependencies = [
   "sentence-transformers>=3.0.0",
   "faiss-cpu>=1.7.0",
   "numpy>=1.26.0",
+  "cohere>=5.0.0",
+  "rank-bm25>=1.0.0",
 ]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.0.0", "pytest-asyncio>=0.24.0"]
+
+[tool.pytest.ini_options]
+pythonpath = ["."]
+asyncio_mode = "auto"
 
 [tool.uvicorn]
 factory = false

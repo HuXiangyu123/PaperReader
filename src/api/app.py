@@ -2,12 +2,16 @@ from __future__ import annotations
 
 from dotenv import load_dotenv
 from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel, Field
 
 from src.agent.llm import build_deepseek_chat
 from src.agent.react_agent import build_react_agent
 from src.agent.report import generate_literature_report
 from src.agent.settings import Settings
+from src.api.routes.tasks import router as tasks_router
+from src.api.routes.corpus_evidence import router as corpus_evidence_router
+from src.api.routes.evals import router as evals_router
 from src.tools.pdf import extract_text_from_pdf_bytes
 
 load_dotenv()
@@ -15,6 +19,17 @@ load_dotenv()
 PDF_SUFFIX = ".pdf"
 
 app = FastAPI(title="Literature Report Agent", version="0.1.0")
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_credentials=True,
+    allow_methods=["*"],
+    allow_headers=["*"],
+)
+app.include_router(tasks_router)
+app.include_router(corpus_evidence_router)
+app.include_router(evals_router)
 
 
 def _build_react_agent():
