@@ -137,30 +137,6 @@ PaperReader Agent/
 
 ---
 
-## 当前成熟度
-
-| 功能 | 状态 |
-|------|------|
-| 8 节点 Research Graph | ✅ 成熟 |
-| 三源并行检索 | ✅ 成熟 |
-| Context Compression (87% 压缩率) | ✅ 成熟 |
-| Citation Resolution | ✅ 成熟 |
-| PostgreSQL 持久化 + SSE 推送 | ✅ 成熟 |
-| Multi-Agent 协作 | ⚠️ 需重构 |
-| Skills 框架 | ⚠️ 未接入主链路 |
-
----
-
-## 已知问题
-
-| 问题 | 说明 |
-|------|------|
-| LangGraph 合规性 (24%) | 手工 `AgentSupervisor` 替代官方 API |
-| review gate 过宽 | ungrounded claims 可能通过验证 |
-| Skills 未接入主链路 | 定义了但几乎没被使用 |
-
----
-
 ## 技术亮点
 
 1. **多阶段 StateGraph 工作流**：8 节点 + 11 节点双图并行
