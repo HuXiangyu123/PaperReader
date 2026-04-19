@@ -6,7 +6,7 @@
 
 
 
-![nano_task_759047f6e35e4a46a735849d36ca87ae](/Users/artorias/Desktop/nano_task_759047f6e35e4a46a735849d36ca87ae.png)
+![架构预览图](./架构预览图.png)
 
 
 
@@ -174,4 +174,3 @@ PaperReader Agent/
 详细技术文档见 [docs/面试/tech_part/README.md](docs/面试/tech_part/README.md)
 
 ---
-
